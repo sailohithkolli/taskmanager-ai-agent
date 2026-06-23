@@ -31,13 +31,21 @@ public class AgentService {
 
         Map<String, Object> body = Map.of(
                 "model", "llama-3.3-70b-versatile",
-                "messages", List.of(Map.of("role", "system", "content",
+                "messages", List.of(
+                        Map.of("role", "system", "content",
                                 "You are a task management assistant. You have access to these tools:\n" +
                                         "- get_all_tasks: Returns all tasks from the database\n" +
-                                        "- create_task: Creates a new task\n\n" +
-                                        "When you need a tool, respond ONLY with JSON: {\"tool\": \"get_all_tasks\"} or {\"tool\": \"create_task\", \"title\": \"task title\"}\n" +
+                                        "- create_task: Creates a new task (needs title)\n" +
+                                        "- complete_task: Marks a task as completed (needs id)\n" +
+                                        "- delete_task: Deletes a task (needs id)\n\n" +
+                                        "When you need a tool, respond ONLY with JSON in one of these formats:\n" +
+                                        "{\"tool\": \"get_all_tasks\"}\n" +
+                                        "{\"tool\": \"create_task\", \"title\": \"task title\"}\n" +
+                                        "{\"tool\": \"complete_task\", \"id\": 1}\n" +
+                                        "{\"tool\": \"delete_task\", \"id\": 1}\n" +
                                         "Otherwise respond normally."),
-                                        Map.of("role", "user", "content", userMessage))
+                        Map.of("role", "user", "content", userMessage)
+                )
         );
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
@@ -51,8 +59,8 @@ public class AgentService {
         // Tool detection
         if (aiResponse.trim().startsWith("{")) {
             ObjectMapper mapper = new ObjectMapper();
-            Map<String, String> toolCall = mapper.readValue(aiResponse, Map.class);
-            String toolName = toolCall.get("tool");
+            Map<String, Object> toolCall = mapper.readValue(aiResponse, Map.class);
+            String toolName = (String) toolCall.get("tool");
 
             if ("get_all_tasks".equals(toolName)) {
                 List<Task> tasks = taskService.getAllTasks();
@@ -62,13 +70,28 @@ public class AgentService {
 
             if("create_task".equals(toolName))
             {
-                String title = toolCall.get("title");
+                String title = (String) toolCall.get("title");
                 Task newTask = new Task();
                 newTask.setTitle(title);
                 newTask.setCompleted(false);
                 Task created = taskService.createTask(newTask);
                 return sendFollowUp(headers, userMessage,aiResponse,"Task created:" + created.getTitle());
             }
+
+            if("complete_task".equals(toolName))
+            {
+                int id = ((Number)(toolCall.get("id"))).intValue();
+                Task completed = taskService.completeTask(id);
+                return sendFollowUp(headers,userMessage,aiResponse,"Task completed"+completed.getTitle());
+            }
+
+            if("delete_task".equals(toolName))
+            {
+                int id = ((Number)(toolCall.get("id"))).intValue();
+                taskService.deleteTask(id);
+                return sendFollowUp(headers,userMessage,aiResponse,"Task Deleted Succesfully");
+            }
+
         }
 
         return aiResponse;
