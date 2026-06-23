@@ -32,4 +32,11 @@ public class TaskService {
         existing.setCompleted(task.isCompleted());
         return taskRepository.save(existing);
     }
+
+    public Task completeTask(int id)
+    {
+        Task exists = taskRepository.findById(id).orElseThrow(()->new RuntimeException("Task not found"));
+        exists.setCompleted(true);
+        return taskRepository.save(exists);
+    }
 }
