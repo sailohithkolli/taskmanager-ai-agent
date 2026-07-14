@@ -11,11 +11,11 @@ import java.util.Map;
 @RequestMapping("/review")
 public class CodeReviewController {
 
-    private final CodeReviewService codeReviewService;
+    private final OrchestratorAgent orchestratorAgent;
 
 
-    public CodeReviewController(CodeReviewService codeReviewService) {
-        this.codeReviewService = codeReviewService;
+    public CodeReviewController(OrchestratorAgent orchestratorAgent) {
+        this.orchestratorAgent=orchestratorAgent;
     }
 
     @PostMapping()
@@ -24,6 +24,6 @@ public class CodeReviewController {
         String repoOwner = (String) request.get("repoOwner");
         String repoName = (String) request.get("repoName");
         int prNumber = (int) request.get("prNumber");
-        return codeReviewService.reviewPR(repoOwner, repoName, prNumber);
+        return orchestratorAgent.Orchestrate(repoOwner, repoName, prNumber);
     }
 }
