@@ -4,7 +4,7 @@ A production-grade Spring Boot REST API with an integrated multi-agent AI orches
 
 ---
 
-## Architecture
+## Architecture 
 
 ```
 ┌─────────────────────────────────────────────────────────┐
