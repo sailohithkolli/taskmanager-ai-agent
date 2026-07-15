@@ -1,47 +1,28 @@
 package com.sai.taskmanager;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class SecurityAgent {
-    @Value("${groq.api.key}")
-    private String apikey;
-    private final RestTemplate restTemplate = new RestTemplate();
+
+    private final GroqClient groqClient;
+    private static final String SYSTEMPROMPT = "You are an expert security reviewer. Analyze the following PR diff and focus ONLY on:\n" +
+            "- Security vulnerabilities (SQL injection, XSS, CSRF)\n" +
+            "- Exposed secrets or API keys in code\n" +
+            "- Authentication and authorization issues\n" +
+            "- Insecure data validation\n" +
+            "- Dependency vulnerabilities\n" +
+            "Do NOT comment on code quality or style.";
+
+    public SecurityAgent(GroqClient groqClient) {
+        this.groqClient = groqClient;
+    }
+
     public String SecurityCheck(String diff)
     {
-        HttpHeaders groqHeaders = new HttpHeaders();
-        groqHeaders.setContentType(MediaType.APPLICATION_JSON);
-        groqHeaders.setBearerAuth(apikey);
 
-        Map<String,Object> body = Map.of(
-                "model", "llama-3.3-70b-versatile",
-                "messages", List.of(
-                        Map.of("role", "system", "content",
-                                "You are an expert security reviewer. Analyze the following PR diff and focus ONLY on:\n" +
-                                        "- Security vulnerabilities (SQL injection, XSS, CSRF)\n" +
-                                        "- Exposed secrets or API keys in code\n" +
-                                        "- Authentication and authorization issues\n" +
-                                        "- Insecure data validation\n" +
-                                        "- Dependency vulnerabilities\n" +
-                                        "Do NOT comment on code quality or style."),
-                        Map.of("role", "user", "content", "Review this PR diff:\n\n" + diff)
-                )
-        );
-
-        HttpEntity<Map<String, Object>> groqRequest = new HttpEntity<>(body, groqHeaders);
-        ResponseEntity<Map> response = restTemplate.postForEntity("https://api.groq.com/openai/v1/chat/completions", groqRequest, Map.class);
-        List<Map> choices = (List<Map>) response.getBody().get("choices");
-        Map message = (Map) choices.get(0).get("message");
-        return (String) message.get("content");
+        return groqClient.chat(SYSTEMPROMPT,"Review this PR Diff:\n\n" + diff);
 
     }
 
