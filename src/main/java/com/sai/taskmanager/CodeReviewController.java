@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/review")
@@ -19,8 +20,7 @@ public class CodeReviewController {
     }
 
     @PostMapping()
-    public String Review(@RequestBody Map<String, Object> request)
-    {
+    public String Review(@RequestBody Map<String, Object> request) throws ExecutionException, InterruptedException {
         String repoOwner = (String) request.get("repoOwner");
         String repoName = (String) request.get("repoName");
         int prNumber = (int) request.get("prNumber");

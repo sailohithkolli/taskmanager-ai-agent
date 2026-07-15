@@ -8,12 +8,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
 @Service
 public class OrchestratorAgent {
     @Value("${github.token}")
     private String github_token;
-    @Value(("${groq.api.key}"))
-    private String apikey;
+
     private final CodeQualityAgent codeQualityAgent;
     private final SecurityAgent securityAgent;
     private final DocumentationAgent documentationAgent;
@@ -25,8 +27,7 @@ public class OrchestratorAgent {
         this.documentationAgent = documentationAgent;
     }
     private final RestTemplate restTemplate = new RestTemplate();
-    public String Orchestrate(String repoOwner, String repoName, int prNumber)
-    {
+    public String Orchestrate(String repoOwner, String repoName, int prNumber) throws ExecutionException, InterruptedException {
         HttpHeaders githubHeaders = new HttpHeaders();
         githubHeaders.setBearerAuth(github_token);
         githubHeaders.set("Accept","application/vnd.github.v3.diff");
@@ -38,9 +39,21 @@ public class OrchestratorAgent {
         ResponseEntity<String> diffResponse = restTemplate.exchange(prUrl, HttpMethod.GET,githubRequest,String.class);
 
         String diff = diffResponse.getBody();
-        String qualityReview = codeQualityAgent.CheckQuality(diff);
-        String securityReview = securityAgent.SecurityCheck(diff);
-        String docReview = documentationAgent.GenerateDocument(diff);
+        CompletableFuture<String> qualityFuture = CompletableFuture.supplyAsync(
+                () -> codeQualityAgent.CheckQuality(diff));
+
+        CompletableFuture<String> securityFuture = CompletableFuture.supplyAsync(
+                () -> securityAgent.SecurityCheck(diff));
+
+        CompletableFuture<String> docFuture = CompletableFuture.supplyAsync(
+                () -> documentationAgent.GenerateDocument(diff));
+
+        CompletableFuture.allOf(qualityFuture, securityFuture, docFuture).join();
+        String qualityReview = qualityFuture.get();
+        String securityReview = securityFuture.get();
+        String docReview = docFuture.get();
+
+
         return "## Code Review Report\n\n" +
                 "### Code Quality\n" + qualityReview + "\n\n" +
                 "### Security\n" + securityReview + "\n\n" +
